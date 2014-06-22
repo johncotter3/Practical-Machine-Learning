@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Practical Machine Learning Course Project</title>
+  <meta charset="utf-8">
+  <meta name="description" content="Practical Machine Learning Course Project">
+  <meta name="author" content="John Cotter">
+  <meta name="generator" content="slidify" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/default.css" media="all" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/phone.css" 
+    media="only screen and (max-device-width: 480px)" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/slidify.css" >
+  <link rel="stylesheet" href="libraries/highlighters/highlight.js/css/tomorrow.css" />
+  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->  <link rel=stylesheet href="./assets/css/ribbons.css"></link>
+
+  
+  <!-- Grab CDN jQuery, fall back to local if offline -->
+  <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.7.min.js"></script>
+  <script>window.jQuery || document.write('<script src="libraries/widgets/quiz/js/jquery.js"><\/script>')</script> 
+  <script data-main="libraries/frameworks/io2012/js/slides" 
+    src="libraries/frameworks/io2012/js/require-1.0.8.min.js">
+  </script>
+  
+  
+
+</head>
+<body style="opacity: 0">
+  <slides class="layout-widescreen">
+    
+    <!-- LOGO SLIDE -->
+        <slide class="title-slide segue nobackground">
+  <hgroup class="auto-fadein">
+    <h1>Practical Machine Learning Course Project</h1>
+    <h2>Johns Hopkins University</h2>
+    <p>John Cotter<br/></p>
+  </hgroup>
+  <article></article>  
+</slide>
+    
+
+    <!-- SLIDES -->
+    <slide class="" id="slide-1" style="background:;">
+  <hgroup>
+    <h2>Introduction</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>Background from Assignment</h1>
+
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset). </p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Test Setup</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>Load Required Librarys and set a seed for repeatability</h1>
+
+<pre><code class="r">library(caret)
+library(randomForest)
+set.seed(27272)
+</code></pre>
+
+<h1>Import Data Sets</h1>
+
+<pre><code class="r">training=read.csv(file=&quot;../pml-training.csv&quot;,head=TRUE,sep=&quot;,&quot;,na.strings=c(&quot;NA&quot;,&quot;#DIV/0!&quot;,&quot;&quot;))
+testing=read.csv(file=&quot;../pml-testing.csv&quot;,head=TRUE,sep=&quot;,&quot;)
+</code></pre>
+
+<h1>Clean Data by dropping first 7 columns and Removing columns with all NAs and zeros</h1>
+
+<pre><code class="r">training&lt;-training[,-seq(1:7)]
+testing&lt;-testing[,-seq(1:7)]
+hasNA&lt;-as.vector(sapply(training[,1:152],function(x) {length(which(is.na(x)))!=0}))
+training&lt;-training[,!hasNA]
+testing&lt;-testing[,!hasNA]
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Test Setup</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>Divide training data as training (70%) and testing (30%)</h1>
+
+<h1>I will be testing how much accuracy is lost using PCA</h1>
+
+<pre><code class="r">inTrain&lt;-createDataPartition(training$classe, p = 0.7)[[1]]
+Traintraining&lt;-training[inTrain,]
+Traintesting&lt;-training[-inTrain,]
+</code></pre>
+
+<h1>Preprocess with PCA for both training and testing</h1>
+
+<pre><code class="r">preProc&lt;-preProcess(Traintraining[,-53],method=&quot;pca&quot;)
+trainPCA&lt;-predict(preProc,Traintraining[,-53])
+trainPCA$classe=Traintraining$classe
+testPCA&lt;-predict(preProc,Traintesting[,-53])
+testPCA$classe=Traintesting$classe
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Training with Random Forests</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>Full data</h1>
+
+<pre><code class="r">fitFullRF&lt;-randomForest(Traintraining$classe ~.,data = Traintraining,importance = TRUE)
+predictFullRF&lt;-predict(fitFullRF,Traintesting)
+fullCM&lt;-confusionMatrix(predictFullRF,Traintesting$classe)
+fullCM$overall
+</code></pre>
+
+<pre><code>##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
+##         0.9941         0.9925         0.9917         0.9959         0.2845 
+## AccuracyPValue  McnemarPValue 
+##         0.0000            NaN
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Training with Random Forests</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>PCA data</h1>
+
+<pre><code class="r">fitpcaRF&lt;-randomForest(trainPCA$classe ~.,data = trainPCA,importance = TRUE)
+predictpcaRF&lt;-predict(fitpcaRF,testPCA)
+pcaCM &lt;- confusionMatrix(predictpcaRF,testPCA$classe)
+pcaCM$overall
+</code></pre>
+
+<pre><code>##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
+##      9.752e-01      9.686e-01      9.709e-01      9.790e-01      2.845e-01 
+## AccuracyPValue  McnemarPValue 
+##      0.000e+00      8.199e-06
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Training Error</h2>
+  </hgroup>
+  <article data-timings="">
+    <p>In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally during the run.  However, the error does decrease with the number of trees. The following plot shows the training error vs # of trees. </p>
+
+<pre><code class="r">plot(fitFullRF,main=&quot;Error vs # of trees&quot;)
+</code></pre>
+
+<p><img src="figure/unnamed-chunk-1.png" alt="plot of chunk unnamed-chunk-1"> </p>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <hgroup>
+    <h2>Final Outcomes</h2>
+  </hgroup>
+  <article data-timings="">
+    <h1>Differences in Accuracy</h1>
+
+<pre><code class="r">fullCM$overall[1]-pcaCM$overall[1]
+</code></pre>
+
+<pre><code>## Accuracy 
+##  0.01886
+</code></pre>
+
+<h1>PCA only loses ~1.8% Accuracy but I want to use the full data anyway</h1>
+
+<pre><code class="r">finalRF&lt;-randomForest(training$classe ~.,data = training,importance = TRUE)
+Answer&lt;-predict(finalRF,testing)
+Answer
+</code></pre>
+
+<pre><code>##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+    <slide class="backdrop"></slide>
+  </slides>
+  <div class="pagination pagination-small" id='io2012-ptoc' style="display:none;">
+    <ul>
+      <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=1 title='Introduction'>
+         1
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=2 title='Test Setup'>
+         2
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=3 title='Test Setup'>
+         3
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=4 title='Training with Random Forests'>
+         4
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=5 title='Training with Random Forests'>
+         5
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=6 title='Training Error'>
+         6
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=7 title='Final Outcomes'>
+         7
+      </a>
+    </li>
+  </ul>
+  </div>  <!--[if IE]>
+    <script 
+      src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1/CFInstall.min.js">  
+    </script>
+    <script>CFInstall.check({mode: 'overlay'});</script>
+  <![endif]-->
+</body>
+  <!-- Load Javascripts for Widgets -->
+  
+  <!-- LOAD HIGHLIGHTER JS FILES -->
+  <script src="libraries/highlighters/highlight.js/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <!-- DONE LOADING HIGHLIGHTER JS FILES -->
+   
+  </html>
