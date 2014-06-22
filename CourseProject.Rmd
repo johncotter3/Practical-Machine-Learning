@@ -1,0 +1,108 @@
+---
+title       : Practical Machine Learning Course Project
+subtitle    : Johns Hopkins University
+author      : John Cotter
+job         : 
+framework   : io2012        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : tomorrow      # 
+widgets     : []            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+---
+
+## Introduction
+Background from Assignment
+================
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+--- .class #id 
+
+## Test Setup
+# Load Required Librarys and set a seed for repeatability
+``` {r loadLibraries, message=FALSE}
+library(caret)
+library(randomForest)
+set.seed(27272)
+```
+
+# Import Data Sets
+``` {r importData, warning=FALSE, error=FALSE}
+training=read.csv(file="../pml-training.csv",head=TRUE,sep=",",na.strings=c("NA","#DIV/0!",""))
+testing=read.csv(file="../pml-testing.csv",head=TRUE,sep=",")
+``` 
+
+# Clean Data by dropping first 7 columns and Removing columns with all NAs and zeros
+``` {r cleanData}
+training<-training[,-seq(1:7)]
+testing<-testing[,-seq(1:7)]
+hasNA<-as.vector(sapply(training[,1:152],function(x) {length(which(is.na(x)))!=0}))
+training<-training[,!hasNA]
+testing<-testing[,!hasNA]
+```
+
+--- .class #id
+
+## Test Setup
+# Divide training data as training (70%) and testing (30%)
+# I will be testing how much accuracy is lost using PCA
+``` {r divideTrainingData}
+inTrain<-createDataPartition(training$classe, p = 0.7)[[1]]
+Traintraining<-training[inTrain,]
+Traintesting<-training[-inTrain,]
+```
+
+# Preprocess with PCA for both training and testing
+``` {r preprocessPCA}
+preProc<-preProcess(Traintraining[,-53],method="pca")
+trainPCA<-predict(preProc,Traintraining[,-53])
+trainPCA$classe=Traintraining$classe
+testPCA<-predict(preProc,Traintesting[,-53])
+testPCA$classe=Traintesting$classe
+```
+
+--- .class #id
+
+## Training with Random Forests
+# Full data 
+``` {r rfTrainFull}
+fitFullRF<-randomForest(Traintraining$classe ~.,data = Traintraining,importance = TRUE)
+predictFullRF<-predict(fitFullRF,Traintesting)
+fullCM<-confusionMatrix(predictFullRF,Traintesting$classe)
+fullCM$overall
+```
+
+--- .class #id
+
+## Training with Random Forests
+# PCA data
+``` {r rfTrainPCA}
+fitpcaRF<-randomForest(trainPCA$classe ~.,data = trainPCA,importance = TRUE)
+predictpcaRF<-predict(fitpcaRF,testPCA)
+pcaCM <- confusionMatrix(predictpcaRF,testPCA$classe)
+pcaCM$overall
+```
+
+--- .class #id
+
+## Training Error
+In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally during the run.  However, the error does decrease with the number of trees. The following plot shows the training error vs # of trees. 
+
+```{r trainingError, fig.height=4}
+plot(fitFullRF,main="Error vs # of trees")
+```
+
+--- .class #id
+
+## Final Outcomes
+# Differences in Accuracy
+``` {r accuracyDiff}
+fullCM$overall[1]-pcaCM$overall[1]
+```
+
+# PCA only loses ~1.8% Accuracy but I want to use the full data anyway
+``` {r answer}
+finalRF<-randomForest(training$classe ~.,data = training,importance = TRUE)
+Answer<-predict(finalRF,testing)
+Answer
+```
